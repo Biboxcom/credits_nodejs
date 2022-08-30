@@ -346,6 +346,27 @@ class BiboxCreditsClientBase {
         }, 20000 );
     };
 
+    _delayReconnect = ( ms = 3000 ) => {
+        const timer = setTimeout( () => {
+            this._reconnect();
+            clearTimeout( timer );
+        }, ms );
+    };
+    _reconnect = () => {
+        if ( this._wss ) {
+            let __wss = this._wss;
+            __wss.removeAllListeners();
+            __wss.on( "error", () => {} );
+            if ( __wss.readyState !== __wss.CONNECTING ) {
+                __wss.terminate();
+            }
+            clearTimeout( this._pingTimeout );
+            clearTimeout( this._keepLive );
+            this._wss = null;
+            this._initWss();
+        }
+    };
+
     _initWss = () => {
         if ( !this._wss ) {
             this._wss = new WebSocket( this._wssHost );
@@ -356,11 +377,13 @@ class BiboxCreditsClientBase {
             } );
 
             this._wss.on( "close", () => {
-                clearTimeout( this._pingTimeout );
+                console.log( "close", e );
+                this._delayReconnect();
             } );
 
             this._wss.on( "error", ( err ) => {
                 console.log( "error", err );
+                this._delayReconnect();
             } );
 
             this._wss.on( "ping", ( message ) => {
